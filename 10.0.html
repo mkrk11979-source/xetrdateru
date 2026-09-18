@@ -1,0 +1,713 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Профессиональный Анализатор iPhone</title>
+    
+    <link rel="apple-touch-icon" href="apple-icon.png">
+    <meta name="apple-mobile-web-app-title" content="Apple Проверка">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+
+    <style>
+        :root {
+            --bg: #f5f5f7;
+            --card: #ffffff;
+            --text: #1d1d1f;
+            --muted: #86868b;
+            --blue: #0071e3;
+            --red: #ff3b30;
+            --green: #34c759;
+            --yellow: #ffcc00;
+            --gray: #e5e5ea;
+            --border: #d2d2d7;
+            --purple: #bf5af2;
+        }
+
+        body.dark-theme {
+            --bg: #000000;
+            --card: #1c1c1e;
+            --text: #f5f5f7;
+            --muted: #98989d;
+            --gray: #3a3a3c;
+            --border: #38383a;
+        }
+
+        * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
+        body { background: var(--bg); color: var(--text); padding: 20px; padding-bottom: 100px; transition: background 0.3s, color 0.3s; }
+        
+        .container { max-width: 600px; margin: 0 auto; transition: opacity 0.4s ease; margin-top: 35px; }
+        h1 { text-align: center; margin-bottom: 5px; font-size: 26px; }
+        .subtitle { text-align: center; color: var(--muted); margin-bottom: 25px; font-size: 14px; }
+        
+        .progress-container {
+            position: fixed; top: 0; left: 0; right: 0; background: var(--card); border-bottom: 1px solid var(--border);
+            padding: 10px 20px; z-index: 1100; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+        }
+        .progress-track {
+            width: 100%; max-width: 560px; height: 8px; background: var(--gray); border-radius: 4px; position: relative; overflow: visible;
+        }
+        .progress-fill {
+            height: 100%; background: var(--green); border-radius: 4px; width: 0%; transition: width 0.3s ease;
+        }
+        .progress-apple {
+            position: absolute; top: 50%; transform: translate(-50%, -50%); left: 0%;
+            width: 24px; height: 24px; background: var(--card); border: 2px solid var(--blue); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center; font-size: 12px; transition: left 0.3s ease;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+
+        .theme-toggle {
+            position: fixed; top: 60px; left: 20px; background: var(--card); border: 1px solid var(--border);
+            color: var(--text); border-radius: 50%; width: 40px; height: 40px; font-size: 20px;
+            cursor: pointer; display: flex; align-items: center; justify-content: center; box-shadow: 0 2px 10px rgba(0,0,0,0.1); z-index: 1000;
+        }
+
+        .card { background: var(--card); border-radius: 16px; padding: 20px; margin-bottom: 16px; box-shadow: 0 2px 10px rgba(0,0,0,0.03); transition: background 0.3s; }
+        h3 { font-size: 17px; margin-bottom: 4px; }
+        .hint { font-size: 13px; color: var(--muted); margin-bottom: 12px; line-height: 1.4; }
+        .section-label { font-size: 12px; text-transform: uppercase; color: var(--muted); margin-bottom: 6px; font-weight: bold; letter-spacing: 0.5px; margin-top: 10px;}
+
+        .model-header { display: flex; gap: 10px; align-items: flex-start; }
+        select.model-select { width: 100%; padding: 12px; border: 1px solid var(--border); border-radius: 10px; font-size: 16px; background: var(--bg); color: var(--text); outline: none; }
+        
+        /* Кастомный раскрывающийся список моделей (Аккордеон) */
+        .accordion-select {
+            flex: 1;
+            border: 1px solid var(--border);
+border-radius: 10px;
+            background: var(--bg);
+            overflow: hidden;
+        }
+        .accordion-header {
+            padding: 12px;
+            font-size: 16px;
+            color: var(--text);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            user-select: none;
+        }
+        .accordion-header::after {
+            content: "▼";
+            font-size: 12px;
+            color: var(--muted);
+            transition: transform 0.3s;
+        }
+        .accordion-select.open .accordion-header::after {
+            transform: rotate(180deg);
+        }
+        .accordion-body {
+            display: none;
+            max-height: 320px;
+            overflow-y: auto;
+            border-top: 1px solid var(--border);
+            background: var(--card);
+        }
+        .accordion-select.open .accordion-body {
+            display: block;
+        }
+        .line-group {
+            border-bottom: 1px solid var(--border);
+        }
+        .line-group:last-child {
+            border-bottom: none;
+        }
+        .line-title {
+            padding: 10px 14px;
+            font-size: 14px;
+            font-weight: 600;
+            background: var(--bg);
+            color: var(--text);
+            cursor: pointer;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+        .line-title::after {
+            content: "+";
+            font-size: 16px;
+            color: var(--muted);
+        }
+        .line-group.expanded .line-title::after {
+            content: "−";
+        }
+        .line-models {
+            display: none;
+            padding: 5px 0;
+            background: var(--card);
+        }
+        .line-group.expanded .line-models {
+            display: block;
+        }
+        .model-item {
+            padding: 10px 20px;
+            font-size: 14px;
+            color: var(--text);
+            cursor: pointer;
+            transition: background 0.2s;
+        }
+        .model-item:hover {
+            background: var(--bg);
+            color: var(--blue);
+        }
+        .model-item.selected {
+            font-weight: bold;
+            color: var(--blue);
+        }
+
+        .reset-btn {
+            background: var(--card); border: 2px solid var(--blue); color: var(--text); padding: 10px 14px; border-radius: 10px;
+            font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap; display: flex; align-items: center; gap: 5px; transition: 0.2s;
+        }
+        .reset-btn:hover { background: var(--bg); }
+
+        .toggle-group { display: flex; gap: 10px; margin-bottom: 10px; }
+        .toggle-group label { flex: 1; text-align: center; background: var(--bg); padding: 10px; border-radius: 8px; cursor: pointer; font-size: 14px; border: 2px solid transparent; transition: 0.2s; font-weight: 500; }
+        .toggle-group input[type="radio"] { display: none; }
+        
+        .toggle-group input[value="yes"]:checked + span { color: var(--green); }
+        .toggle-group input[value="no"]:checked + span { color: var(--red); }
+        .toggle-group input[value="replaced"]:checked + span { color: var(--purple); }
+        .toggle-group label:has(input:checked) { border-color: var(--blue); background: var(--card); box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+
+        .sub-menu { display: none; background: var(--bg); border-left: 3px solid var(--red); padding: 12px; border-radius: 0 8px 8px 0; margin-bottom: 10px; margin-top: 5px;}
+        .sub-menu.active { display: flex; flex-direction: column; gap: 10px; animation: fadeIn 0.3s ease; }
+        .sub-menu label { display: flex; align-items: center; gap: 10px; font-size: 14px; cursor: pointer; }
+        .sub-menu input[type="checkbox"], .sub-menu input[type="radio"] { width: 18px; height: 18px; accent-color: var(--red); }
+@keyframes fadeIn { from { opacity: 0; transform: translateY(-5px); } to { opacity: 1; transform: translateY(0); } }
+
+        .footer-bar { position: fixed; bottom: 0; left: 0; right: 0; background: var(--card); padding: 15px 20px; border-top: 1px solid var(--border); z-index: 100; text-align: center; box-shadow: 0 -2px 15px rgba(0,0,0,0.05);}
+        .finish-btn { background: var(--blue); color: #fff; border: none; padding: 12px 24px; border-radius: 10px; font-size: 16px; font-weight: 600; width: 100%; max-width: 600px; cursor: pointer; display: none; margin: 0 auto;}
+
+        .result-screen { display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: var(--card); z-index: 2000; flex-direction: column; align-items: center; justify-content: center; padding: 20px; text-align: center; animation: fadeIn 0.5s ease; }
+        .score-circle { width: 200px; height: 200px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 48px; font-weight: bold; margin-bottom: 30px; border: 8px solid var(--gray); }
+        .price-box { background: var(--bg); padding: 20px; border-radius: 16px; width: 100%; max-width: 400px; margin-top: 20px; }
+        .price-title { color: var(--muted); font-size: 14px; margin-bottom: 5px; }
+        .price-value { font-size: 32px; font-weight: bold; color: var(--text); }
+        .price-desc { font-size: 13px; color: var(--muted); margin-top: 5px; }
+        .restart-btn { margin-top: 40px; background: transparent; border: 2px solid var(--blue); color: var(--blue); padding: 10px 30px; border-radius: 8px; font-size: 16px; cursor: pointer; font-weight: 600; }
+    </style>
+</head>
+<body>
+
+<div class="progress-container">
+    <div class="progress-track">
+        <div class="progress-fill" id="progress-fill"></div>
+        <div class="progress-apple" id="progress-apple">🍎</div>
+    </div>
+</div>
+
+<button class="theme-toggle" onclick="toggleTheme()" id="theme-icon">🌙</button>
+
+<div class="container" id="main-app">
+    <h1>Оценка iPhone</h1>
+    <div class="subtitle">Полная диагностика и рыночный расчет для Авито</div>
+
+    <div class="card">
+        <h3>Модель устройства и Память</h3>
+        <div class="model-header" style="margin-bottom: 10px;">
+            
+            <!-- Раскрывающийся аккордеон с линейками iPhone -->
+            <div class="accordion-select" id="accordion-select">
+                <div class="accordion-header" id="accordion-label" onclick="toggleAccordion()">Выберите модель iPhone...</div>
+                <div class="accordion-body">
+                    
+                    <div class="line-group">
+                        <div class="line-title" onclick="toggleLine(this)">Линейка iPhone 17</div>
+                        <div class="line-models">
+                            <div class="model-item" data-val="17e" onclick="selectModel(this, '17e', 'iPhone 17e')">iPhone 17e</div>
+                            <div class="model-item" data-val="17" onclick="selectModel(this, '17', 'iPhone 17')">iPhone 17</div>
+                            <div class="model-item" data-val="17air" onclick="selectModel(this, '17air', 'iPhone Air')">iPhone Air</div>
+                            <div class="model-item" data-val="17p" onclick="selectModel(this, '17p', 'iPhone 17 Pro')">iPhone 17 Pro</div>
+                            <div class="model-item" data-val="17pm" onclick="selectModel(this, '17pm', 'iPhone 17 Pro Max')">iPhone 17 Pro Max</div>
+                        </div>
+                    </div>
+
+                    <div class="line-group">
+                        <div class="line-title" onclick="toggleLine(this)">Линейка iPhone 16</div>
+                        <div class="line-models">
+                            <div class="model-item" data-val="16" onclick="selectModel(this, '16', 'iPhone 16')">iPhone 16</div>
+<div class="model-item" data-val="16plus" onclick="selectModel(this, '16plus', 'iPhone 16 Plus')">iPhone 16 Plus</div>
+                            <div class="model-item" data-val="16p" onclick="selectModel(this, '16p', 'iPhone 16 Pro')">iPhone 16 Pro</div>
+                            <div class="model-item" data-val="16pm" onclick="selectModel(this, '16pm', 'iPhone 16 Pro Max')">iPhone 16 Pro Max</div>
+                        </div>
+                    </div>
+
+                    <div class="line-group">
+                        <div class="line-title" onclick="toggleLine(this)">Линейка iPhone 15</div>
+                        <div class="line-models">
+                            <div class="model-item" data-val="15" onclick="selectModel(this, '15', 'iPhone 15')">iPhone 15</div>
+                            <div class="model-item" data-val="15plus" onclick="selectModel(this, '15plus', 'iPhone 15 Plus')">iPhone 15 Plus</div>
+                            <div class="model-item" data-val="15p" onclick="selectModel(this, '15p', 'iPhone 15 Pro')">iPhone 15 Pro</div>
+                            <div class="model-item" data-val="15pm" onclick="selectModel(this, '15pm', 'iPhone 15 Pro Max')">iPhone 15 Pro Max</div>
+                        </div>
+                    </div>
+
+                    <div class="line-group">
+                        <div class="line-title" onclick="toggleLine(this)">Линейка iPhone 14</div>
+                        <div class="line-models">
+                            <div class="model-item" data-val="14" onclick="selectModel(this, '14', 'iPhone 14')">iPhone 14</div>
+                            <div class="model-item" data-val="14plus" onclick="selectModel(this, '14plus', 'iPhone 14 Plus')">iPhone 14 Plus</div>
+                            <div class="model-item" data-val="14p" onclick="selectModel(this, '14p', 'iPhone 14 Pro')">iPhone 14 Pro</div>
+                            <div class="model-item" data-val="14pm" onclick="selectModel(this, '14pm', 'iPhone 14 Pro Max')">iPhone 14 Pro Max</div>
+                        </div>
+                    </div>
+
+                    <div class="line-group">
+                        <div class="line-title" onclick="toggleLine(this)">Линейка iPhone 13</div>
+                        <div class="line-models">
+                            <div class="model-item" data-val="13m" onclick="selectModel(this, '13m', 'iPhone 13 mini')">iPhone 13 mini</div>
+                            <div class="model-item" data-val="13" onclick="selectModel(this, '13', 'iPhone 13')">iPhone 13</div>
+                            <div class="model-item" data-val="13p" onclick="selectModel(this, '13p', 'iPhone 13 Pro')">iPhone 13 Pro</div>
+                            <div class="model-item" data-val="13pm" onclick="selectModel(this, '13pm', 'iPhone 13 Pro Max')">iPhone 13 Pro Max</div>
+                        </div>
+                    </div>
+
+                    <div class="line-group">
+                        <div class="line-title" onclick="toggleLine(this)">Линейка iPhone 12</div>
+                        <div class="line-models">
+                            <div class="model-item" data-val="12m" onclick="selectModel(this, '12m', 'iPhone 12 mini')">iPhone 12 mini</div>
+                            <div class="model-item" data-val="12" onclick="selectModel(this, '12', 'iPhone 12')">iPhone 12</div>
+                            <div class="model-item" data-val="12p" onclick="selectModel(this, '12p', 'iPhone 12 Pro')">iPhone 12 Pro</div>
+                            <div class="model-item" data-val="12pm" onclick="selectModel(this, '12pm', 'iPhone 12 Pro Max')">iPhone 12 Pro Max</div>
+                        </div>
+                    </div>
+
+                    <div class="line-group">
+                        <div class="line-title" onclick="toggleLine(this)">Линейка iPhone 11</div>
+                        <div class="line-models">
+<div class="model-item" data-val="11" onclick="selectModel(this, '11', 'iPhone 11')">iPhone 11</div>
+                            <div class="model-item" data-val="11p" onclick="selectModel(this, '11p', 'iPhone 11 Pro')">iPhone 11 Pro</div>
+                            <div class="model-item" data-val="11pm" onclick="selectModel(this, '11pm', 'iPhone 11 Pro Max')">iPhone 11 Pro Max</div>
+                        </div>
+                    </div>
+
+                    <div class="line-group">
+                        <div class="line-title" onclick="toggleLine(this)">Линейка iPhone X / XS / XR и SE</div>
+                        <div class="line-models">
+                            <div class="model-item" data-val="se2020" onclick="selectModel(this, 'se2020', 'iPhone SE (2020)')">iPhone SE (2020)</div>
+                            <div class="model-item" data-val="se2022" onclick="selectModel(this, 'se2022', 'iPhone SE (2022)')">iPhone SE (2022)</div>
+                            <div class="model-item" data-val="x" onclick="selectModel(this, 'x', 'iPhone X')">iPhone X</div>
+                            <div class="model-item" data-val="xr" onclick="selectModel(this, 'xr', 'iPhone XR')">iPhone XR</div>
+                            <div class="model-item" data-val="xs" onclick="selectModel(this, 'xs', 'iPhone XS')">iPhone XS</div>
+                            <div class="model-item" data-val="xsm" onclick="selectModel(this, 'xsm', 'iPhone XS Max')">iPhone XS Max</div>
+                        </div>
+                    </div>
+
+                    <div class="line-group">
+                        <div class="line-title" onclick="toggleLine(this)">Линейка iPhone 8</div>
+                        <div class="line-models">
+                            <div class="model-item" data-val="8" onclick="selectModel(this, '8', 'iPhone 8')">iPhone 8</div>
+                            <div class="model-item" data-val="8p" onclick="selectModel(this, '8p', 'iPhone 8 Plus')">iPhone 8 Plus</div>
+                        </div>
+                    </div>
+
+                    <div class="line-group">
+                        <div class="line-title" onclick="toggleLine(this)">Линейка iPhone 7</div>
+                        <div class="line-models">
+                            <div class="model-item" data-val="7" onclick="selectModel(this, '7', 'iPhone 7')">iPhone 7</div>
+                            <div class="model-item" data-val="7p" onclick="selectModel(this, '7p', 'iPhone 7 Plus')">iPhone 7 Plus</div>
+                        </div>
+                    </div>
+
+                    <div class="line-group">
+                        <div class="line-title" onclick="toggleLine(this)">Линейка iPhone 6 / 6s</div>
+                        <div class="line-models">
+                            <div class="model-item" data-val="6" onclick="selectModel(this, '6', 'iPhone 6')">iPhone 6</div>
+                            <div class="model-item" data-val="6p" onclick="selectModel(this, '6p', 'iPhone 6 Plus')">iPhone 6 Plus</div>
+                            <div class="model-item" data-val="6s" onclick="selectModel(this, '6s', 'iPhone 6s')">iPhone 6s</div>
+                            <div class="model-item" data-val="6sp" onclick="selectModel(this, '6sp', 'iPhone 6s Plus')">iPhone 6s Plus</div>
+                        </div>
+                    </div>
+
+                </div>
+            </div>
+
+            <button class="reset-btn" onclick="resetForm()" title="Сбросить все">✕ Сброс</button>
+        </div>
+        <select class="model-select" id="device-memory" onchange="checkCompletion()" style="display:none;"></select>
+    </div>
+
+    <!-- КОЛИЧЕСТВО СИМ-КАРТ -->
+    <div class="card">
+        <h3>Связь и SIM-карты</h3>
+        <div class="section-label">Конфигурация сим-карт:</div>
+        <div class="toggle-group req-group" style="flex-wrap: wrap;">
+<label style="flex: 1 1 45%;"><input type="radio" name="sim_type" value="1sim" onchange="checkCompletion()"> <span>1 SIM</span></label>
+            <label style="flex: 1 1 45%;"><input type="radio" name="sim_type" value="2sim" data-bonus="5" onchange="checkCompletion()"> <span>2 SIM (физ)</span></label>
+            <label style="flex: 1 1 45%;"><input type="radio" name="sim_type" value="sim_esim" data-bonus="3" onchange="checkCompletion()"> <span>SIM + eSIM</span></label>
+            <label style="flex: 1 1 45%;"><input type="radio" name="sim_type" value="esim_only" onchange="checkCompletion()"> <span>Только eSIM</span></label>
+        </div>
+    </div>
+
+    <!-- ОТВЯЗКА ICLOUD -->
+    <div class="card">
+        <h3>Отвязка от iCloud</h3>
+        <div class="toggle-group req-group">
+            <label><input type="radio" name="icloud" value="yes" onchange="checkCompletion()"> <span>Отвязан</span></label>
+            <label><input type="radio" name="icloud" value="no" data-penalty="95" onchange="checkCompletion()"> <span>Не отвязан</span></label>
+        </div>
+    </div>
+
+    <!-- ВНЕШНИЙ ВИД -->
+    <div class="card">
+        <h3>Внешний вид корпуса и стекла</h3>
+        <div class="toggle-group req-group">
+            <label><input type="radio" name="appearance" value="yes" onchange="toggleSub('sub-app', false); checkCompletion()"> <span>Идеал</span></label>
+            <label><input type="radio" name="appearance" value="no" onchange="toggleSub('sub-app', true); checkCompletion()"> <span>Дефекты</span></label>
+        </div>
+        <div id="sub-app" class="sub-menu">
+            <label><input type="checkbox" data-penalty="3"> Мелкие царапины на экране</label>
+            <label><input type="checkbox" data-penalty="5"> Глубокие царапины на экране</label>
+            <label><input type="checkbox" data-penalty="15"> Трещины на стекле экрана</label>
+            <label><input type="checkbox" data-penalty="5"> Потертости на корпусе</label>
+            <label><input type="checkbox" data-penalty="10"> Сколы/вмятины на корпусе</label>
+            <label><input type="checkbox" data-penalty="10"> Разбита задняя крышка</label>
+        </div>
+    </div>
+
+    <!-- ДИСПЛЕЙ -->
+    <div class="card">
+        <h3>Дисплей (Матрица)</h3>
+        <div class="section-label">Происхождение детали:</div>
+        <div class="toggle-group req-group">
+            <label><input type="radio" name="disp_orig" value="yes" onchange="checkCompletion()"> <span>Оригинал</span></label>
+            <label><input type="radio" name="disp_orig" value="replaced" data-penalty="10" onchange="checkCompletion()"> <span>Менялся</span></label>
+        </div>
+        <div class="section-label">Состояние матрицы:</div>
+        <div class="toggle-group req-group">
+            <label><input type="radio" name="display" value="yes" onchange="toggleSub('sub-disp', false); checkCompletion()"> <span>Идеал</span></label>
+            <label><input type="radio" name="display" value="no" onchange="toggleSub('sub-disp', true); checkCompletion()"> <span>Дефекты</span></label>
+        </div>
+        <div id="sub-disp" class="sub-menu">
+            <label><input type="checkbox" data-penalty="30"> Мертвые зоны (тачскрин)</label>
+            <label><input type="checkbox" data-penalty="15"> Засветы на белом фоне</label>
+            <label><input type="checkbox" data-penalty="35"> Матрица потекла / Пятна</label>
+            <label><input type="checkbox" data-penalty="10"> Битые пиксели</label>
+        </div>
+    </div>
+
+    <!-- БИОМЕТРИЯ -->
+    <div class="card" id="biometry-card">
+        <h3 id="biometry-title">Биометрия и True Tone</h3>
+        <div id="biometry-container"></div>
+        <div class="toggle-group req-group" id="truetone-group" style="margin-top: 15px;">
+            <label><input type="radio" name="truetone" value="yes" onchange="checkCompletion()"> <span>True Tone есть</span></label>
+<label><input type="radio" name="truetone" value="no" data-penalty="10" onchange="checkCompletion()"> <span>Нет True Tone</span></label>
+        </div>
+    </div>
+
+    <!-- АККУМУЛЯТОР -->
+    <div class="card">
+        <h3>Аккумулятор</h3>
+        <div class="section-label">Происхождение детали:</div>
+        <div class="toggle-group req-group">
+            <label><input type="radio" name="batt_orig" value="yes" onchange="checkCompletion()"> <span>Оригинал</span></label>
+            <label><input type="radio" name="batt_orig" value="replaced" data-penalty="5" onchange="checkCompletion()"> <span>Менялся</span></label>
+        </div>
+        <div class="section-label">Износ:</div>
+        <div class="toggle-group req-group">
+            <label><input type="radio" name="battery" value="yes" onchange="toggleSub('sub-batt', false); checkCompletion()"> <span>100% / Отлично</span></label>
+            <label><input type="radio" name="battery" value="no" onchange="toggleSub('sub-batt', true); checkCompletion()"> <span>Изношен</span></label>
+        </div>
+        <div id="sub-batt" class="sub-menu">
+            <label><input type="radio" name="batt_lvl" data-penalty="3"> Больше 80%</label>
+            <label><input type="radio" name="batt_lvl" data-penalty="10"> От 60% до 79% (Требует замены)</label>
+            <label><input type="radio" name="batt_lvl" data-penalty="15"> Менее 60%</label>
+            <label><input type="radio" name="batt_lvl" data-penalty="15"> Ошибка "Неизвестная деталь"</label>
+        </div>
+    </div>
+
+    <!-- КАМЕРЫ -->
+    <div class="card">
+        <h3>Камеры</h3>
+        <div class="section-label">Модуль камер:</div>
+        <div class="toggle-group req-group">
+            <label><input type="radio" name="cam_orig" value="yes" onchange="checkCompletion()"> <span>Оригинал</span></label>
+            <label><input type="radio" name="cam_orig" value="replaced" data-penalty="10" onchange="checkCompletion()"> <span>Менялся</span></label>
+        </div>
+        <div class="section-label">Работа камеры:</div>
+        <div class="toggle-group req-group">
+            <label><input type="radio" name="camera_status" value="yes" onchange="toggleSub('sub-cam', false); checkCompletion()"> <span>Идеал</span></label>
+            <label><input type="radio" name="camera_status" value="no" onchange="toggleSub('sub-cam', true); checkCompletion()"> <span>Дефекты</span></label>
+        </div>
+        <div id="sub-cam" class="sub-menu">
+            <label><input type="checkbox" data-penalty="15"> Пятна на линзе / матрице</label>
+            <label><input type="checkbox" data-penalty="15"> Тряска при зуме / Нет фокуса</label>
+        </div>
+    </div>
+
+    <!-- МИКРОФОНЫ И ЗВУК -->
+    <div class="card">
+        <h3>Микрофоны и Диктофон</h3>
+        <div class="toggle-group req-group">
+            <label><input type="radio" name="mics" value="yes" onchange="toggleSub('sub-mics', false); checkCompletion()"> <span>Все работают идеально</span></label>
+            <label><input type="radio" name="mics" value="no" onchange="toggleSub('sub-mics', true); checkCompletion()"> <span>Есть дефекты звука</span></label>
+        </div>
+        <div id="sub-mics" class="sub-menu">
+            <label><input type="checkbox" data-penalty="15"> Нижний микрофон не работает</label>
+            <label><input type="checkbox" data-penalty="15"> Верхний микрофон не работает</label>
+            <label><input type="checkbox" data-penalty="15"> Задний микрофон не работает</label>
+            <label><input type="checkbox" data-penalty="10"> Микрофоны очень тихие (грязные сетки)</label>
+            <label><input type="checkbox" data-penalty="10"> Шипение при записи видео / звука</label>
+        </div>
+    </div>
+
+    <!-- СВЯЗЬ И СЕТЬ -->
+    <div class="card">
+        <h3>Связь, Wi-Fi, Датчики</h3>
+        <div class="toggle-group req-group">
+<label><input type="radio" name="network" value="yes" onchange="toggleSub('sub-net', false); checkCompletion()"> <span>Всё работает</span></label>
+            <label><input type="radio" name="network" value="no" onchange="toggleSub('sub-net', true); checkCompletion()"> <span>Дефекты</span></label>
+        </div>
+        <div id="sub-net" class="sub-menu">
+            <label><input type="checkbox" data-penalty="30"> Не ловит сеть (СИМ)</label>
+            <label><input type="checkbox" data-penalty="10"> Не работает eSIM</label>
+            <label><input type="checkbox" data-penalty="25"> Не работает Wi-Fi / Bluetooth</label>
+            <label><input type="checkbox" data-penalty="5"> Не работает датчик приближения</label>
+            <label><input type="checkbox" data-penalty="10"> Залипают кнопки</label>
+        </div>
+    </div>
+</div>
+
+<div class="footer-bar">
+    <button class="finish-btn" id="finish-btn" onclick="calculateResult()">Рассчитать стоимость для Авито</button>
+</div>
+
+<div class="result-screen" id="result-screen">
+    <h2>Состояние устройства</h2>
+    <div class="score-circle" id="score-circle">100%</div>
+    
+    <h3 id="result-model">iPhone</h3>
+
+    <div class="price-box">
+        <div class="price-title">Рыночная цена на Авито (продажа за неделю):</div>
+        <div class="price-value" id="price-value">0 ₽</div>
+        <div class="price-desc" id="price-desc">Анализ с учетом износа, памяти и дефектов</div>
+    </div>
+
+    <button class="restart-btn" onclick="resetForm()">Оценить другой телефон</button>
+</div>
+
+<script>
+    let selectedModelKey = "";
+    let selectedModelName = "";
+
+    function toggleTheme() {
+        document.body.classList.toggle('dark-theme');
+        const icon = document.getElementById('theme-icon');
+        icon.innerText = document.body.classList.contains('dark-theme') ? '☀️' : '🌙';
+    }
+
+    // Функции работы с раскрывающимся списком линеек (Аккордеоном)
+    function toggleAccordion() {
+        const acc = document.getElementById('accordion-select');
+        acc.classList.toggle('open');
+    }
+
+    function toggleLine(titleEl) {
+        const group = titleEl.parentElement;
+        group.classList.toggle('expanded');
+    }
+
+    function selectModel(itemEl, val, name) {
+        selectedModelKey = val;
+        selectedModelName = name;
+
+        document.querySelectorAll('.model-item').forEach(el => el.classList.remove('selected'));
+        itemEl.classList.add('selected');
+
+        document.getElementById('accordion-label').innerText = name;
+        document.getElementById('accordion-select').classList.remove('open');
+
+        onModelChange();
+    }
+
+    // Полная база цен из вашего списка (для диапазонов взято среднее значение)
+    const pricesDB = {
+        "17e": { "256 ГБ": 50000 },
+        "17": { "256 ГБ": 65000, "512 ГБ": 74000 },
+        "17air": { "256 ГБ": 70500 },
+        "17p": { "256 ГБ": 81000, "512 ГБ": 94500, "1 ТБ": 110500 },
+        "17pm": { "256 ГБ": 91500, "512 ГБ": 106500, "1 ТБ": 121000 },
+        "16": { "128 ГБ": 38000, "256 ГБ": 44000, "512 ГБ": 51000 },
+        "16plus": { "128 ГБ": 44000, "256 ГБ": 50000, "512 ГБ": 57000 },
+        "16p": { "128 ГБ": 52000, "256 ГБ": 58000, "512 ГБ": 67000, "1 ТБ": 76000 },
+        "16pm": { "256 ГБ": 65000, "512 ГБ": 74000, "1 ТБ": 83000 },
+        "15": { "128 ГБ": 30000, "256 ГБ": 34500, "512 ГБ": 40000 },
+        "15plus": { "128 ГБ": 34500, "256 ГБ": 39000, "512 ГБ": 45000 },
+        "15p": { "128 ГБ": 42000, "256 ГБ": 47000, "512 ГБ": 54000, "1 ТБ": 62000 },
+        "15pm": { "256 ГБ": 52000, "512 ГБ": 60000, "1 ТБ": 68000 },
+        "14": { "128 ГБ": 24000, "256 ГБ": 27500, "512 ГБ": 32000 },
+        "14plus": { "128 ГБ": 27500, "256 ГБ": 31000, "512 ГБ": 36000 },
+        "14p": { "128 ГБ": 33000, "256 ГБ": 37500, "512 ГБ": 43000, "1 ТБ": 49000 },
+        "14pm": { "128 ГБ": 37500, "256 ГБ": 42000, "512 ГБ": 48000, "1 ТБ": 54000 },
+        "13m": { "128 ГБ": 16500, "256 ГБ": 19500, "512 ГБ": 23000 },
+"13": { "128 ГБ": 19500, "256 ГБ": 22500, "512 ГБ": 26000 },
+        "13p": { "128 ГБ": 26000, "256 ГБ": 29500, "512 ГБ": 34000, "1 ТБ": 38000 },
+        "13pm": { "128 ГБ": 30000, "256 ГБ": 34500, "512 ГБ": 40000, "1 ТБ": 45000 },
+        "12m": { "64 ГБ": 11000, "128 ГБ": 12500, "256 ГБ": 15000 },
+        "12": { "64 ГБ": 13000, "128 ГБ": 15000, "256 ГБ": 17000 },
+        "12p": { "128 ГБ": 18500, "256 ГБ": 21500, "512 ГБ": 24500 },
+        "12pm": { "128 ГБ": 23000, "256 ГБ": 26000, "512 ГБ": 29500 },
+        "11": { "64 ГБ": 9000, "128 ГБ": 10500, "256 ГБ": 12200 },
+        "11p": { "64 ГБ": 11200, "256 ГБ": 13300, "512 ГБ": 15500 },
+        "11pm": { "64 ГБ": 13700, "256 ГБ": 16500, "512 ГБ": 19000 },
+        "se2020": { "64 ГБ": 5100, "128 ГБ": 6100, "256 ГБ": 7200 },
+        "se2022": { "64 ГБ": 7900, "128 ГБ": 9200, "256 ГБ": 11000 },
+        "x": { "64 ГБ": 5500, "256 ГБ": 6800 },
+        "xr": { "64 ГБ": 6100, "128 ГБ": 7100 },
+        "xs": { "64 ГБ": 6100, "256 ГБ": 7200 },
+        "xsm": { "64 ГБ": 7600, "256 ГБ": 9200 },
+        "8": { "64 ГБ": 3500, "128 ГБ": 4200, "256 ГБ": 5000 },
+        "8p": { "64 ГБ": 5000, "128 ГБ": 5800, "256 ГБ": 6800 },
+        "7": { "32 ГБ": 2500, "128 ГБ": 3100, "256 ГБ": 3600 },
+        "7p": { "32 ГБ": 4000, "128 ГБ": 4800, "256 ГБ": 5500 },
+        "6": { "16 ГБ": 1500, "64 ГБ": 1800 },
+        "6p": { "16 ГБ": 2200, "64 ГБ": 2600 },
+        "6s": { "16 ГБ": 1800, "32 ГБ": 2100, "64 ГБ": 2500 },
+        "6sp": { "16 ГБ": 2600, "32 ГБ": 3000, "64 ГБ": 3500 }
+    };
+
+    function onModelChange() {
+        const val = selectedModelKey;
+        const memSelect = document.getElementById('device-memory');
+        
+        if (!val) return;
+        
+        memSelect.style.display = 'block';
+        memSelect.innerHTML = '<option value="" disabled selected>Выберите объем памяти...</option>';
+
+        // Подгружаем только те варианты памяти, которые есть в нашей БД для этой модели
+        const availableMems = Object.keys(pricesDB[val]);
+        availableMems.forEach(m => {
+            let opt = document.createElement('option');
+            opt.value = m;
+            opt.innerText = m;
+            memSelect.appendChild(opt);
+        });
+
+        const bioContainer = document.getElementById('biometry-container');
+        const bioTitle = document.getElementById('biometry-title');
+        const trueToneGroup = document.getElementById('truetone-group');
+        
+        const touchIdModels = ['6', '6p', '6s', '6sp', '7', '7p', '8', '8p', 'se2020', 'se2022'];
+        const noTrueToneModels = ['6', '6p', '6s', '6sp'];
+
+        if (touchIdModels.includes(val)) {
+            bioTitle.innerText = "Touch ID (Отпечаток)";
+            bioContainer.innerHTML = `
+                <div class="toggle-group req-group">
+                    <label><input type="radio" name="biometry" value="yes" onchange="checkCompletion()"> <span>Работает</span></label>
+                    <label><input type="radio" name="biometry" value="no" data-penalty="15" onchange="checkCompletion()"> <span>Не работает</span></label>
+                </div>`;
+            trueToneGroup.style.display = noTrueToneModels.includes(val) ? 'none' : 'flex';
+        } else {
+            bioTitle.innerText = "Face ID и True Tone";
+            bioContainer.innerHTML = `
+                <div class="toggle-group req-group">
+                    <label><input type="radio" name="biometry" value="yes" onchange="checkCompletion()"> <span>Face ID работает</span></label>
+                    <label><input type="radio" name="biometry" value="no" data-penalty="20" onchange="checkCompletion()"> <span>Face ID не работает</span></label>
+                </div>`;
+            trueToneGroup.style.display = 'flex';
+        }
+
+        checkCompletion();
+    }
+
+    function toggleSub(id, show) {
+        const el = document.getElementById(id);
+        if (show) { el.classList.add('active'); } 
+        else {
+            el.classList.remove('active');
+el.querySelectorAll('input').forEach(input => input.checked = false);
+        }
+    }
+
+    function checkCompletion() {
+        const model = selectedModelKey;
+        const memory = document.getElementById('device-memory').value;
+        const groups = new Set();
+        document.querySelectorAll('.req-group input[type="radio"]:checked').forEach(el => groups.add(el.name));
+        
+        let completedCount = groups.size + (model ? 1 : 0) + (memory ? 1 : 0);
+        let maxSteps = 12; 
+        if (completedCount > maxSteps) completedCount = maxSteps;
+
+        let percent = (completedCount / maxSteps) * 100;
+        document.getElementById('progress-fill').style.width = percent + '%';
+        document.getElementById('progress-apple').style.left = percent + '%';
+
+        const btn = document.getElementById('finish-btn');
+        if (groups.size >= 10 && model && memory) {
+            btn.style.display = 'block';
+        } else {
+            btn.style.display = 'none';
+        }
+    }
+
+    function resetForm() {
+        location.reload();
+    }
+
+    function calculateResult() {
+        let score = 100;
+        
+        document.querySelectorAll('input:checked').forEach(el => {
+            if (el.dataset.penalty) score -= parseInt(el.dataset.penalty);
+        });
+
+        if (score < 0) score = 0;
+
+        document.getElementById('main-app').style.display = 'none';
+        document.querySelector('.footer-bar').style.display = 'none';
+        document.querySelector('.progress-container').style.display = 'none';
+        
+        const resScreen = document.getElementById('result-screen');
+        resScreen.style.display = 'flex';
+
+        const circle = document.getElementById('score-circle');
+        circle.innerText = score + '%';
+        let color = score >= 80 ? 'var(--green)' : (score >= 60 ? 'var(--yellow)' : 'var(--red)');
+        circle.style.borderColor = color;
+        circle.style.color = color;
+
+        const modelKey = selectedModelKey;
+        const modelName = selectedModelName;
+        const memory = document.getElementById('device-memory').value;
+        
+        document.getElementById('result-model').innerText = `${modelName} (${memory})`;
+
+        // Берем базовую цену из вашей таблицы
+        let basePrice = pricesDB[modelKey][memory] || 0;
+
+        const simChecked = document.querySelector('input[name="sim_type"]:checked');
+        if (simChecked && simChecked.dataset.bonus) {
+            basePrice *= 1.05;
+        }
+
+        let finalPrice = 0;
+        const isLocked = document.querySelector('input[name="icloud"][value="no"]').checked;
+        
+        if (isLocked) {
+            finalPrice = basePrice * 0.15;
+            document.getElementById('price-desc').innerText = "Телефон заблокирован (Цена на запчасти)";
+            document.getElementById('price-desc').style.color = 'var(--red)';
+        } else {
+            let conditionFactor = score / 100;
+            // Рассчитываем итоговую цену БЕЗ коэффициента -25%
+            finalPrice = basePrice * conditionFactor; 
+        }
+
+        finalPrice = Math.round(finalPrice / 100) * 100;
+        if (finalPrice < 0) finalPrice = 0;
+
+        document.getElementById('price-value').innerText = finalPrice.toLocaleString('ru-RU') + ' ₽';
+    }
+</script>
+
+</body>
+</html>
